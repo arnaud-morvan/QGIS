@@ -59,9 +59,9 @@ def baseHelpForAlgorithm(alg, folder):
         f.write('----------\n\n')
         for p in alg.parameters:
             if isinstance(p, (ParameterMultipleInput, ParameterTableField, ParameterVector)):
-                f.write('``{}`` [{}: {}]\n'.format(p.description, p.typeName(), p.dataType()))
+                f.write(u'``{}`` [{}: {}]\n'.format(p.description, p.typeName(), p.dataType()))
             else:
-                f.write('``{}`` [{}]\n'.format(p.description, p.typeName()))
+                f.write(u'``{}`` [{}]\n'.format(p.description, p.typeName()))
 
             if hasattr(p, 'optional'):
                 if p.optional:
