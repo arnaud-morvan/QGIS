@@ -84,11 +84,20 @@ class GdalUtils:
                     stdin=open(os.devnull),
                     stderr=subprocess.STDOUT,
                     universal_newlines=True,
-                ).stdout
-                for line in proc:
-                    progress.setConsoleInfo(line)
-                    loglines.append(line)
-                success = True
+                )
+
+                while proc.returncode is None:
+                    out, err = proc.communicate()
+                    if out:
+                        for line in out.splitlines():
+                            progress.setConsoleInfo(line)
+                            loglines.append(line)
+
+                if proc.returncode == 0:
+                    success = True
+                else:
+                    raise Exception("Process exited with code {}"
+                                    .format(proc.returncode))
             except IOError as e:
                 if retry_count < 5:
                     retry_count += 1
