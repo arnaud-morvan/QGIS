@@ -314,7 +314,7 @@ def exportVectorLayer(layer, supported=None):
     output = getTempFilename('shp')
     basename = removeInvalidChars(os.path.basename(layer.source()))
     if basename:
-        if not basename.endswith("shp"):
+        if not basename.lower().endswith("shp"):
             basename = basename + ".shp"
         output = getTempFilenameInTempFolder(basename)
     else:
@@ -336,7 +336,7 @@ def exportVectorLayer(layer, supported=None):
             str(layer.source())
         except UnicodeEncodeError:
             isASCII = False
-        if not os.path.splitext(layer.source())[1].lower() in supported or not isASCII:
+        if not os.path.splitext(layer.source())[1][1:].lower() in supported or not isASCII:
             writer = QgsVectorFileWriter(
                 output, systemEncoding,
                 layer.fields(), layer.wkbType(),
