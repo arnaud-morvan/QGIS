@@ -147,6 +147,7 @@
 #include "qgsexception.h"
 #include "qgsexpressionselectiondialog.h"
 #include "qgsfeature.h"
+#include "qgsfieldsmappingdialog.h"
 #include "qgsformannotationitem.h"
 #include "qgsfieldcalculator.h"
 #include "qgshtmlannotationitem.h"
@@ -7577,6 +7578,9 @@ void QgisApp::editPaste( QgsMapLayer *destinationLayer )
   QgsVectorLayer *pasteVectorLayer = qobject_cast<QgsVectorLayer *>( destinationLayer ? destinationLayer : activeLayer() );
   if ( !pasteVectorLayer )
     return;
+
+  QgsFieldsMappingDialog dialog(clipboard()->fields(), pasteVectorLayer->fields());
+  dialog.exec();
 
   pasteVectorLayer->beginEditCommand( tr( "Features pasted" ) );
   QgsFeatureList features;
