@@ -18,8 +18,19 @@
 """
 
 
-from qgis.PyQt.QtCore import QSettings, QAbstractListModel
-from qgis.PyQt.QtWidgets import QComboBox
+from qgis.core import QgsExpression
+from qgis.gui import QgsExpressionBuilderDialog
+
+from qgis.PyQt.QtCore import (
+    QSettings,
+    )
+from qgis.PyQt.QtWidgets import (
+    QComboBox,
+    QDialog,
+    QHBoxLayout,
+    QToolButton,
+    QWidget,
+    )
 
 from processing.core.parameters import (
     ParameterString,
@@ -33,21 +44,48 @@ from processing.gui.wrappers import WidgetWrapper, DIALOG_MODELER
 from processing.tools.postgis import GeoDB
 
 
-from qgis.core import QgsMessageLog
+class ExpressionEnabledWidgetWrapper(WidgetWrapper):
+
+    def createWidget(self, basewidget):
+        expr_button = QToolButton()
+        expr_button.clicked.connect(self.showExpressionsBuilder)
+        expr_button.setText('...')
+
+        layout = QHBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(basewidget)
+        layout.addWidget(expr_button)
+
+        widget = QWidget()
+        widget.setLayout(layout)
+
+        return widget
+
+    def showExpressionsBuilder(self):
+        context = self.param.expressionContext()
+        value = self.value()
+        if not isinstance(value, str):
+            value = ''
+        dlg = QgsExpressionBuilderDialog(None, value, self.widget, 'generic', context)
+        dlg.setWindowTitle(self.tr('Expression based input'))
+        if dlg.exec_() == QDialog.Accepted:
+            exp = QgsExpression(dlg.expressionText())
+            if not exp.hasParserError():
+                self.setValue(dlg.expressionText())
 
 
-class ConnectionWidgetWrapper(WidgetWrapper):
+class ConnectionWidgetWrapper(ExpressionEnabledWidgetWrapper):
     """
     WidgetWrapper for ParameterString that create and manage a combobox widget
     with existing postgis connections.
     """
 
     def createWidget(self):
-        widget = QComboBox()
+        self._combo = QComboBox()
         for group in self.items():
-            widget.addItem(*group)
-        widget.currentIndexChanged.connect(lambda: self.widgetValueHasChanged.emit(self))
-        return widget
+            self._combo.addItem(*group)
+        self._combo.currentIndexChanged.connect(lambda: self.widgetValueHasChanged.emit(self))
+        return super(ConnectionWidgetWrapper, self).createWidget(self._combo)
 
     def items(self):
         settings = QSettings()
@@ -63,13 +101,13 @@ class ConnectionWidgetWrapper(WidgetWrapper):
         return items
 
     def setValue(self, value):
-        self.setComboValue(value)
+        self.setComboValue(value, self._combo)
 
     def value(self):
-        return self.comboValue()
+        return self.comboValue(combobox=self._combo)
 
 
-class SchemaWidgetWrapper(WidgetWrapper):
+class SchemaWidgetWrapper(ExpressionEnabledWidgetWrapper):
     """
     WidgetWrapper for ParameterString that create and manage a combobox widget
     with existing schemas from a parent connection parameter.
@@ -80,13 +118,12 @@ class SchemaWidgetWrapper(WidgetWrapper):
         self._connection = None
         self._database = None
 
-        widget = QComboBox()
-        widget.setEditable(True)
-        self.widget = widget
+        self._combo = QComboBox()
+        self._combo.setEditable(True)
         self.refreshItems()
-        widget.currentIndexChanged.connect(lambda: self.widgetValueHasChanged.emit(self))
-        widget.lineEdit().editingFinished.connect(lambda: self.widgetValueHasChanged.emit(self))
-        return widget
+        self._combo.currentIndexChanged.connect(lambda: self.widgetValueHasChanged.emit(self))
+        self._combo.lineEdit().editingFinished.connect(lambda: self.widgetValueHasChanged.emit(self))
+        return super(SchemaWidgetWrapper, self).createWidget(self._combo)
 
     def postInitialize(self, wrappers):
         for wrapper in wrappers:
@@ -112,36 +149,35 @@ class SchemaWidgetWrapper(WidgetWrapper):
         self.widgetValueHasChanged.emit(self)
 
     def refreshItems(self):
-        value = self.comboValue()
+        value = self.comboValue(combobox=self._combo)
 
-        self.widget.clear()
+        self._combo.clear()
 
         if self._database is not None:
-            for schema in [s[1] for s in self._database.list_schemas()]:
-                self.widget.addItem(schema, schema)
+            for schema in self._database.list_schemas():
+                self._combo.addItem(schema[1], schema[1])
 
         if self.dialogType == DIALOG_MODELER:
             strings = self.dialog.getAvailableValuesOfType(
                 [ParameterString, ParameterNumber, ParameterFile,
                  ParameterTableField, ParameterExpression], OutputString)
             for text, data in [(self.dialog.resolveValueDescription(s), s) for s in strings]:
-                self.widget.addItem(text, data)
+                self._combo.addItem(text, data)
 
-        self.setComboValue(value)
+        self.setComboValue(value, self._combo)
 
     def setValue(self, value):
-        self.setComboValue(value)
-        #self.widget.setCurrentText(value)
+        self.setComboValue(value, self._combo)
         self.widgetValueHasChanged.emit(self)
 
     def value(self):
-        return self.comboValue()
+        return self.comboValue(combobox=self._combo)
 
     def database(self):
         return self._database
 
 
-class TableWidgetWrapper(WidgetWrapper):
+class TableWidgetWrapper(ExpressionEnabledWidgetWrapper):
     """
     WidgetWrapper for ParameterString that create and manage a combobox widget
     with existing tables from a parent schema parameter.
@@ -152,13 +188,13 @@ class TableWidgetWrapper(WidgetWrapper):
         self._database = None
         self._schema = None
 
-        widget = QComboBox()
-        widget.setEditable(True)
-        self.widget = widget
+        self._combo = QComboBox()
+        self._combo.setEditable(True)
         self.refreshItems()
-        widget.currentIndexChanged.connect(lambda: self.widgetValueHasChanged.emit(self))
-        widget.lineEdit().editingFinished.connect(lambda: self.widgetValueHasChanged.emit(self))
-        return widget
+        self._combo.currentIndexChanged.connect(lambda: self.widgetValueHasChanged.emit(self))
+        self._combo.lineEdit().editingFinished.connect(lambda: self.widgetValueHasChanged.emit(self))
+
+        return super(TableWidgetWrapper, self).createWidget(self._combo)
 
     def postInitialize(self, wrappers):
         for wrapper in wrappers:
@@ -182,27 +218,27 @@ class TableWidgetWrapper(WidgetWrapper):
         self.widgetValueHasChanged.emit(self)
 
     def refreshItems(self):
-        value = self.comboValue()
+        value = self.comboValue(combobox=self._combo)
 
-        self.widget.clear()
+        self._combo.clear()
 
         if (self._database is not None
             and isinstance(self._schema, str)):
             for table in self._database.list_geotables(self._schema):
-                self.widget.addItem(table[0])
+                self._combo.addItem(table[0], table[0])
 
         if self.dialogType == DIALOG_MODELER:
             strings = self.dialog.getAvailableValuesOfType(
                 [ParameterString, ParameterNumber, ParameterFile,
                  ParameterTableField, ParameterExpression], OutputString)
             for text, data in [(self.dialog.resolveValueDescription(s), s) for s in strings]:
-                self.widget.addItem(text, data)
+                self._combo.addItem(text, data)
 
-        self.setComboValue(value)
+        self.setComboValue(value, self._combo)
 
     def setValue(self, value):
-        self.setComboValue(value)
+        self.setComboValue(value, self._combo)
         self.widgetValueHasChanged.emit(self)
 
     def value(self):
-        return self.comboValue()
+        return self.comboValue(combobox=self._combo)
