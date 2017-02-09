@@ -2,7 +2,7 @@
 
 """
 ***************************************************************************
-    wrappers.py
+    wrappers.py - Standard parameters widget wrappers
     ---------------------
     Date                 : May 2016
     Copyright            : (C) 2016 by Arnaud Morvan, Victor Olaya
@@ -17,8 +17,6 @@
 *                                                                         *
 ***************************************************************************
 """
-from builtins import str
-from builtins import range
 
 
 __author__ = 'Arnaud Morvan'
@@ -34,16 +32,34 @@ import locale
 import os
 from functools import cmp_to_key
 
-from qgis.core import QgsCoordinateReferenceSystem, QgsApplication, QgsWkbTypes, QgsMapLayerProxyModel
-from qgis.PyQt.QtWidgets import QCheckBox, QComboBox, QLineEdit, QPlainTextEdit, QWidget, QHBoxLayout, QToolButton, QFileDialog
-from qgis.gui import (QgsFieldExpressionWidget,
-                      QgsExpressionLineEdit,
-                      QgsProjectionSelectionWidget,
-                      QgsGenericProjectionSelector,
-                      QgsFieldComboBox,
-                      QgsFieldProxyModel,
-                      QgsMapLayerComboBox
-                      )
+from qgis.core import (
+    QgsApplication,
+    QgsCoordinateReferenceSystem,
+    QgsExpression,
+    QgsMapLayerProxyModel,
+    QgsWkbTypes,
+    )
+from qgis.PyQt.QtWidgets import (
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QFileDialog,
+    QHBoxLayout,
+    QLineEdit,
+    QPlainTextEdit,
+    QToolButton,
+    QWidget,
+    )
+from qgis.gui import (
+    QgsExpressionLineEdit,
+    QgsExpressionBuilderDialog,
+    QgsFieldComboBox,
+    QgsFieldExpressionWidget,
+    QgsFieldProxyModel,
+    QgsGenericProjectionSelector,
+    QgsMapLayerComboBox,
+    QgsProjectionSelectionWidget,
+    )
 from qgis.PyQt.QtCore import pyqtSignal, QObject, QVariant, QSettings
 
 from processing.gui.NumberInputPanel import NumberInputPanel, ModellerNumberInputPanel
@@ -101,14 +117,14 @@ class WidgetWrapper(QObject):
 
     widgetValueHasChanged = pyqtSignal(object)
 
-    def __init__(self, param, dialog, row=0, col=0):
+    def __init__(self, param, dialog, row=0, col=0, **kwargs):
         QObject.__init__(self)
         self.param = param
         self.dialog = dialog
         self.row = row
         self.col = col
         self.dialogType = dialogTypes.get(dialog.__class__.__name__, DIALOG_STANDARD)
-        self.widget = self.createWidget()
+        self.widget = self.createWidget(**kwargs)
         if param.default is not None:
             self.setValue(param.default)
 
@@ -123,7 +139,7 @@ class WidgetWrapper(QObject):
             return v
         return combobox.currentData()
 
-    def createWidget(self):
+    def createWidget(self, **kwargs):
         pass
 
     def setValue(self, value):
@@ -175,6 +191,36 @@ class WidgetWrapper(QObject):
             settings.setValue('/Processing/LastInputPath',
                               os.path.dirname(str(filename)))
         return filename, selected_filter
+
+
+class ExpressionEnabledWidgetWrapper(WidgetWrapper):
+
+    def createWidget(self, basewidget):
+        expr_button = QToolButton()
+        expr_button.clicked.connect(self.showExpressionsBuilder)
+        expr_button.setText('...')
+
+        layout = QHBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(basewidget)
+        layout.addWidget(expr_button)
+
+        widget = QWidget()
+        widget.setLayout(layout)
+
+        return widget
+
+    def showExpressionsBuilder(self):
+        context = self.param.expressionContext()
+        value = self.value()
+        if not isinstance(value, str):
+            value = ''
+        dlg = QgsExpressionBuilderDialog(None, value, self.widget, 'generic', context)
+        dlg.setWindowTitle(self.tr('Expression based input'))
+        if dlg.exec_() == QDialog.Accepted:
+            exp = QgsExpression(dlg.expressionText())
+            if not exp.hasParserError():
+                self.setValue(dlg.expressionText())
 
 
 class BasicWidgetWrapper(WidgetWrapper):
