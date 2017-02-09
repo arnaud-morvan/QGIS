@@ -21,7 +21,15 @@
 from qgis.PyQt.QtCore import QSettings, QAbstractListModel
 from qgis.PyQt.QtWidgets import QComboBox
 
-from processing.gui.wrappers import WidgetWrapper
+from processing.core.parameters import (
+    ParameterString,
+    ParameterNumber,
+    ParameterFile,
+    ParameterTableField,
+    ParameterExpression
+    )
+from processing.core.outputs import OutputString
+from processing.gui.wrappers import WidgetWrapper, DIALOG_MODELER
 from processing.tools.postgis import GeoDB
 
 
@@ -37,20 +45,28 @@ class ConnectionWidgetWrapper(WidgetWrapper):
     def createWidget(self):
         widget = QComboBox()
         for group in self.items():
-            widget.addItem(group, group)
+            widget.addItem(*group)
         widget.currentIndexChanged.connect(lambda: self.widgetValueHasChanged.emit(self))
         return widget
 
     def items(self):
         settings = QSettings()
         settings.beginGroup('/PostgreSQL/connections/')
-        return [group for group in settings.childGroups()]
+        items = [(group, group) for group in settings.childGroups()]
+
+        if self.dialogType == DIALOG_MODELER:
+            strings = self.dialog.getAvailableValuesOfType(
+                [ParameterString, ParameterNumber, ParameterFile,
+                 ParameterTableField, ParameterExpression], OutputString)
+            items = items + [(self.dialog.resolveValueDescription(s), s) for s in strings]
+
+        return items
 
     def setValue(self, value):
-        self.widget.setCurrentIndex(self.widget.findData(value))
+        self.setComboValue(value)
 
     def value(self):
-        return self.widget.currentData()
+        return self.comboValue()
 
 
 class SchemaWidgetWrapper(WidgetWrapper):
@@ -66,6 +82,8 @@ class SchemaWidgetWrapper(WidgetWrapper):
 
         widget = QComboBox()
         widget.setEditable(True)
+        self.widget = widget
+        self.refreshItems()
         widget.currentIndexChanged.connect(lambda: self.widgetValueHasChanged.emit(self))
         widget.lineEdit().editingFinished.connect(lambda: self.widgetValueHasChanged.emit(self))
         return widget
@@ -86,28 +104,38 @@ class SchemaWidgetWrapper(WidgetWrapper):
 
     def setConnection(self, connection):
         self._connection = connection
-        if isinstance(connection, basestring):
+        if isinstance(connection, str):
             self._database = GeoDB.from_name(connection)
+        else:
+            self._database = None
         self.refreshItems()
         self.widgetValueHasChanged.emit(self)
 
     def refreshItems(self):
-        value = self.widget.currentText()
+        value = self.comboValue()
 
         self.widget.clear()
+
         if self._database is not None:
-            QgsMessageLog.logMessage('list_schemas')
             for schema in [s[1] for s in self._database.list_schemas()]:
-                self.widget.addItem(schema)
+                self.widget.addItem(schema, schema)
 
-        self.widget.setCurrentText(value)
+        if self.dialogType == DIALOG_MODELER:
+            strings = self.dialog.getAvailableValuesOfType(
+                [ParameterString, ParameterNumber, ParameterFile,
+                 ParameterTableField, ParameterExpression], OutputString)
+            for text, data in [(self.dialog.resolveValueDescription(s), s) for s in strings]:
+                self.widget.addItem(text, data)
 
-    def setValue(self, value, raise_event=True):
-        self.widget.setCurrentText(value)
+        self.setComboValue(value)
+
+    def setValue(self, value):
+        self.setComboValue(value)
+        #self.widget.setCurrentText(value)
         self.widgetValueHasChanged.emit(self)
 
     def value(self):
-        return self.widget.currentText()
+        return self.comboValue()
 
     def database(self):
         return self._database
@@ -126,6 +154,8 @@ class TableWidgetWrapper(WidgetWrapper):
 
         widget = QComboBox()
         widget.setEditable(True)
+        self.widget = widget
+        self.refreshItems()
         widget.currentIndexChanged.connect(lambda: self.widgetValueHasChanged.emit(self))
         widget.lineEdit().editingFinished.connect(lambda: self.widgetValueHasChanged.emit(self))
         return widget
@@ -152,20 +182,27 @@ class TableWidgetWrapper(WidgetWrapper):
         self.widgetValueHasChanged.emit(self)
 
     def refreshItems(self):
-        value = self.widget.currentText()
+        value = self.comboValue()
 
         self.widget.clear()
-        database = self.schema_wrapper.database()
-        if database is not None:
-            QgsMessageLog.logMessage('list_geotables')
-            for table in database.list_geotables(self._schema):
+
+        if (self._database is not None
+            and isinstance(self._schema, str)):
+            for table in self._database.list_geotables(self._schema):
                 self.widget.addItem(table[0])
 
-        self.widget.setCurrentText(value)
+        if self.dialogType == DIALOG_MODELER:
+            strings = self.dialog.getAvailableValuesOfType(
+                [ParameterString, ParameterNumber, ParameterFile,
+                 ParameterTableField, ParameterExpression], OutputString)
+            for text, data in [(self.dialog.resolveValueDescription(s), s) for s in strings]:
+                self.widget.addItem(text, data)
+
+        self.setComboValue(value)
 
     def setValue(self, value):
-        self.widget.setCurrentText(value)
+        self.setComboValue(value)
         self.widgetValueHasChanged.emit(self)
 
     def value(self):
-        return self.widget.currentText()
+        return self.comboValue()
