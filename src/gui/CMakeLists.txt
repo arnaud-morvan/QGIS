@@ -216,6 +216,7 @@ SET(QGIS_GUI_SRCS
   qgsfieldexpressionwidget.cpp
   qgsfieldmodel.cpp
   qgsfieldproxymodel.cpp
+  qgsfieldsmappingdialog.cpp
   qgsfieldvalidator.cpp
   qgsfieldvalueslineedit.cpp
   qgsfiledropedit.cpp
@@ -375,6 +376,7 @@ SET(QGIS_GUI_MOC_HDRS
   qgsfieldexpressionwidget.h
   qgsfieldmodel.h
   qgsfieldproxymodel.h
+  qgsfieldsmappingdialog.h
   qgsfieldvalidator.h
   qgsfieldvalueslineedit.h
   qgsfiledropedit.h

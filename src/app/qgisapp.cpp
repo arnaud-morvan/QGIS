@@ -152,6 +152,7 @@
 #include "qgsfieldcalculator.h"
 #include "qgsfieldformatter.h"
 #include "qgsfieldformatterregistry.h"
+#include "qgsfieldsmappingdialog.h"
 #include "qgsformannotation.h"
 #include "qgshtmlannotation.h"
 #include "qgsgenericprojectionselector.h"
@@ -7541,6 +7542,13 @@ void QgisApp::editPaste( QgsMapLayer *destinationLayer )
   QgsVectorLayer *pasteVectorLayer = qobject_cast<QgsVectorLayer *>( destinationLayer ? destinationLayer : activeLayer() );
   if ( !pasteVectorLayer )
     return;
+
+  QgsFieldsMappingDialog* dlg = new QgsFieldsMappingDialog( clipboard()->fields(), pasteVectorLayer->fields() );
+  if ( dlg->exec() )
+  {
+
+  }
+  delete dlg;
 
   pasteVectorLayer->beginEditCommand( tr( "Features pasted" ) );
   QgsFeatureList features;
