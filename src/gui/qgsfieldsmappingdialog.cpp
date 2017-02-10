@@ -21,7 +21,11 @@ QgsFieldsMappingDialog::QgsFieldsMappingDialog( const QgsFields &srcFields, cons
     , mDstFields( dstFields )
     , mModel( this )
 {
-  //init( &mModel );
+  init( parent );
+  mModel = QgsFieldsMappingModel();
+
+  mModel.
+  this->fieldsView.setModel(mModel)
 }
 
 void QgsFieldsMappingDialog::setMap( const QgsFieldsMapping& map )
@@ -58,6 +62,12 @@ QgsFieldsMapping QgsFieldsMappingModel::map() const
 QgsFieldsMappingModel::QgsFieldsMappingModel( QObject *parent ) :
     QAbstractTableModel( parent )
 {
+  self._mapping = []
+
+  for field in dp.fields():
+    mLines.append(QPair(field, QgsExpression(field.name());
+    self._mapping.append(self.newField(field))
+    testAllExpressions()
 }
 
 int QgsFieldsMappingModel::rowCount( const QModelIndex& parent ) const

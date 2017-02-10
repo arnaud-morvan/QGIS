@@ -16,14 +16,15 @@
 #ifndef QGSFIELDSMAPPINGDIALOG_H
 #define QGSFIELDSMAPPINGDIALOG_H
 
-
 #include <QMap>
 #include <QAbstractTableModel>
 #include <QDialog>
 
-#include "ui_qgsfieldsmappingdialogbase.h"
-#include "qgsfields.h"
 #include "qgsexpression.h"
+#include "qgsfields.h"
+#include "qgstablewidgetbase.h"
+
+#include "ui_qgsfieldsmappingdialogbase.h"
 
 typedef QMap<QString, QgsExpression> QgsFieldsMapping;
 
@@ -39,8 +40,7 @@ class GUI_EXPORT QgsFieldsMappingModel : public QAbstractTableModel
     Q_OBJECT
   public:
 
-    explicit QgsFieldsMappingModel( QObject *parent = 0 );
-    void setMap( const QgsFieldsMapping& map );
+    explicit QgsFieldsMappingModel( QgsFields &srcFields, QgsFields &dstFields, QObject *parent = 0 );
     QgsFieldsMapping map() const;
 
     int rowCount( const QModelIndex& parent = QModelIndex() ) const override;
