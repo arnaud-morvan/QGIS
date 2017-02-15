@@ -59,6 +59,124 @@ from processing.modeler.ModelerAlgorithm import (ValueFromInput,
                                                  Algorithm,
                                                  ModelerOutput)
 
+from processing.gui.wrappers import WidgetWrapper
+
+
+class ModelerWidgetWrapperTest(WidgetWrapper):
+
+    #def __init__(self, wrapper, model_values):
+    #    super(ModelerWidgetWrapper, self).__init__()
+
+    def createWidget(self, base_wrapper, model_values):
+        self.base_wrapper = base_wrapper
+        self.model_values = model_values
+
+        self.model_values_combo = QComboBox()
+        for text, value in model_values:
+            self.model_values_combo.addItem(text, value)
+
+        self.tab_widget = QTabWidget()
+        self.tab_widget.addTab(self.model_values_combo, 'Model inputs')
+        self.tab_widget.addTab(self.base_wrapper.widget, 'Fixed value')
+
+        self.base_wrapper.widgetValueHasChanged.connect(
+            lambda: self.widgetValueHasChanged.emit(self))
+        self.model_values_combo.currentIndexChanged.connect(
+            lambda: self.widgetValueHasChanged.emit(self))
+        self.tab_widget.currentChanged.connect(
+            lambda: self.widgetValueHasChanged.emit(self))
+
+        return self.tab_widget
+
+    def setValue(self, value):
+        if isinstance(value, ValueFromInput):
+            self.setComboValue(value, self.model_values_combo)
+            self.tab_widget.setCurrentWidget(self.model_values_combo)
+        else:
+            self.base_wrapper.setValue(value)
+            self.tab_widget.setCurrentWidget(self.base_wrapper.widget)
+
+    def value(self):
+        if self.tab_widget.currentWidget() is self.model_values_combo:
+            return self.comboValue(combobox = self.model_values_combo)
+        if self.tab_widget.currentWidget() is self.base_wrapper.widget:
+            return self.base_wrapper.value()
+
+
+class ModelerWidgetWrapper(WidgetWrapper):
+
+    def createWidget(self, base_wrapper, inputs, outputs):
+        self.base_wrapper = base_wrapper
+        self.model_values = inputs + outputs
+
+        widget = QWidget()
+
+        menu = QMenu()
+        fixed_value_action = QAction(self.tr('Fixed value'), menu)
+        fixed_value_action.triggered.connect(self.on_fixedValue)
+        menu.addAction(fixed_value_action)
+
+        menu.addSection(self.tr("Model inputs"))
+        for text, value in inputs:
+            model_value_action = QAction(text, menu)
+            model_value_action.setData(value)
+            model_value_action.triggered.connect(self.on_modelValue)
+            menu.addAction(model_value_action)
+
+        menu.addSection(self.tr("Algorithms outputs"))
+        for text, value in outputs:
+            model_value_action = QAction(text, menu)
+            model_value_action.setData(value)
+            model_value_action.triggered.connect(self.on_modelValue)
+            menu.addAction(model_value_action)
+
+        self.mIconDataDefine = QgsApplication.getThemeIcon("/mIconDataDefine.svg")
+        self.mIconDataDefineOn = QgsApplication.getThemeIcon("/mIconDataDefineOn.svg")
+
+        button = QToolButton()
+        button.setIcon(self.mIconDataDefine)
+        button.setPopupMode(QToolButton.InstantPopup)
+        button.setMenu(menu)
+        self.button = button
+
+        label = QLabel()
+        label.hide()
+        self.label = label
+
+        layout = QHBoxLayout()
+        layout.addWidget(button, 0)
+        layout.addWidget(label, 1)
+        layout.addWidget(base_wrapper.widget, 1)
+        widget.setLayout(layout)
+        return widget
+
+    def on_fixedValue(self):
+        self.button.setIcon(self.mIconDataDefine)
+        self.label.hide()
+        self.base_wrapper.widget.show()
+
+    def on_modelValue(self):
+        action = self.sender()
+        self.setValue(action.data())
+
+    def setValue(self, value):
+        for text, val in self.model_values:
+            if val == value:
+                self.model_value = value
+                self.button.setIcon(self.mIconDataDefineOn)
+                self.label.setText(text)
+                self.label.show()
+                self.base_wrapper.widget.hide()
+                return
+        self.base_wrapper.setValue(value)
+        self.on_fixedValue()
+
+    def value(self):
+        if self.label.isVisible():
+            return self.model_value
+        else:
+            return self.base_wrapper.value()
+
 
 class ModelerParametersDialog(QDialog):
 
@@ -142,7 +260,16 @@ class ModelerParametersDialog(QDialog):
             label = QLabel(desc)
             self.labels[param.name] = label
 
-            wrapper = param.wrapper(self)
+            base_wrapper = param.wrapper(self)
+            compatibleInputs = [(self.resolveValueDescription(s), s) for s in
+                                self.getAvailableInputs(base_wrapper)]
+            compatibleOuputs = [(self.resolveValueDescription(s), s) for s in
+                                self.getAvailableOutputs(base_wrapper)]
+            wrapper = ModelerWidgetWrapper(param,
+                                           self,
+                                           base_wrapper=base_wrapper,
+                                           inputs=compatibleInputs,
+                                           outputs=compatibleOuputs)
             self.wrappers[param.name] = wrapper
 
             widget = wrapper.widget
@@ -261,39 +388,44 @@ class ModelerParametersDialog(QDialog):
                 self.labels[param.name].setVisible(self.showAdvanced)
                 self.widgets[param.name].setVisible(self.showAdvanced)
 
-    def getAvailableValuesOfType(self, paramType, outType=None, dataType=None):
-        # upgrade paramType to list
-        if type(paramType) is not list:
-            paramType = [paramType]
+    def getAvailableInputs(self, base_wrapper):
+        paramTypes = base_wrapper.compatibleParameterTypes()
+        dataTypes = base_wrapper.compatibleDataTypes()
 
         values = []
-        inputs = self.model.inputs
-        for i in list(inputs.values()):
+        for i in self.model.inputs.values():
             param = i.param
-            for t in paramType:
-                if isinstance(param, t):
-                    if dataType is not None:
-                        if param.datatype in dataType:
-                            values.append(ValueFromInput(param.name))
-                    else:
-                        values.append(ValueFromInput(param.name))
-                    break
-        if outType is None:
+            if not isinstance(param, tuple(paramTypes)):
+                continue
+            if dataTypes and not param.datatype in dataTypes:
+                continue
+            values.append(ValueFromInput(param.name))
+        return values
+
+    def getAvailableOutputs(self, base_wrapper):
+        outTypes = base_wrapper.compatibleOutputTypes()
+        dataTypes = base_wrapper.compatibleDataTypes()
+
+        values = []
+        if not outTypes:
             return values
         if self._algName is None:
             dependent = []
         else:
             dependent = self.model.getDependentAlgorithms(self._algName)
         for alg in list(self.model.algs.values()):
-            if alg.name not in dependent:
-                for out in alg.algorithm.outputs:
-                    if isinstance(out, outType):
-                        if dataType is not None and out.datatype in dataType:
-                            values.append(ValueFromOutput(alg.name, out.name))
-                        else:
-                            values.append(ValueFromOutput(alg.name, out.name))
-
+            if alg.name in dependent:
+                continue
+            for out in alg.algorithm.outputs:
+                if not isinstance(out, tuple(outTypes)):
+                    continue
+                if dataTypes and not out.datatype in dataTypes:
+                    continue
+                values.append(ValueFromOutput(alg.name, out.name))
         return values
+
+    def getAvailableValuesOfType(self, paramType, outType=None, dataType=None):
+        return []
 
     def resolveValueDescription(self, value):
         if isinstance(value, ValueFromInput):

@@ -191,6 +191,15 @@ class WidgetWrapper(QObject):
                               os.path.dirname(str(filename)))
         return filename, selected_filter
 
+    def compatibleParameterTypes(self):
+        return []
+
+    def compatibleOutputTypes(self):
+        return []
+
+    def compatibleDataTypes(self):
+        return []
+
 
 class ExpressionWidgetWrapperMixin():
 
@@ -787,6 +796,12 @@ class VectorWidgetWrapper(WidgetWrapper):
             widget.setLayout(layout)
             return widget
 
+    def compatibleParameterTypes(self):
+        return [ParameterVector]
+
+    def compatibleOutputTypes(self):
+        return [OutputVector]
+
     def selectFile(self):
         filename, selected_filter = self.getFileName(self.combo.currentText())
         if filename:
@@ -854,6 +869,16 @@ class StringWidgetWrapper(WidgetWrapper, ExpressionWidgetWrapperMixin):
                 for desc, val in options:
                     widget.addItem(desc, val)
         return widget
+
+    def compatibleParameterTypes(self):
+        return [ParameterString,
+                ParameterNumber,
+                ParameterFile,
+                ParameterTableField,
+                ParameterExpression]
+
+    def compatibleOutputTypes(self):
+        return [OutputString]
 
     def setValue(self, value):
         if self.dialogType == DIALOG_STANDARD:
