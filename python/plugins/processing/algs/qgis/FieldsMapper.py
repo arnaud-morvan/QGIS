@@ -33,12 +33,14 @@ from qgis.core import (QgsField,
                        QgsDistanceArea,
                        QgsProject,
                        QgsFeature,
-                       GEO_NONE,
                        QgsApplication)
+
 from processing.core.GeoAlgorithm import GeoAlgorithm
 from processing.core.GeoAlgorithmExecutionException import GeoAlgorithmExecutionException
-from processing.core.parameters import ParameterTable
-from processing.core.parameters import Parameter
+from processing.core.parameters import (
+    Parameter,
+    ParameterTable,
+)
 from processing.core.outputs import OutputVector
 from processing.tools import dataobjects, vector
 
@@ -48,10 +50,6 @@ class FieldsMapper(GeoAlgorithm):
     INPUT_LAYER = 'INPUT_LAYER'
     FIELDS_MAPPING = 'FIELDS_MAPPING'
     OUTPUT_LAYER = 'OUTPUT_LAYER'
-
-    def __init__(self):
-        GeoAlgorithm.__init__(self)
-        self.mapping = None
 
     def icon(self):
         return QgsApplication.getThemeIcon("/providerQgis.svg")
@@ -116,75 +114,74 @@ class FieldsMapper(GeoAlgorithm):
         output = self.getOutputFromName(self.OUTPUT_LAYER)
 
         layer = dataobjects.getLayerFromString(layer)
+
+        self.da = QgsDistanceArea()
+        self.da.setSourceCrs(layer.crs())
+        self.da.setEllipsoidalMode(True)
+        self.da.setEllipsoid(QgsProject.instance().ellipsoid())
+
+        self.exp_context = layer.createExpressionContext()
+
         fields = []
-        expressions = []
-
-        da = QgsDistanceArea()
-        da.setSourceCrs(layer.crs())
-        da.setEllipsoidalMode(True)
-        da.setEllipsoid(QgsProject.instance().ellipsoid())
-
-        exp_context = layer.createExpressionContext()
-
+        fields_expr = []
         for field_def in mapping:
             fields.append(QgsField(name=field_def['name'],
                                    type=field_def['type'],
                                    len=field_def['length'],
                                    prec=field_def['precision']))
-
-            expression = QgsExpression(field_def['expression'])
-            expression.setGeomCalculator(da)
-            expression.setDistanceUnits(QgsProject.instance().distanceUnits())
-            expression.setAreaUnits(QgsProject.instance().areaUnits())
-            expression.prepare(exp_context)
-            if expression.hasParserError():
-                raise GeoAlgorithmExecutionException(
-                    self.tr(u'Parser error in expression "{}": {}')
-                    .format(str(expression.expression()),
-                            str(expression.parserErrorString())))
-            expressions.append(expression)
+            expression = field_def['expression']
+            expr = self.createExpression(expression)
+            fields_expr.append(expr)
 
         writer = output.getVectorWriter(fields,
                                         layer.wkbType(),
                                         layer.crs())
 
-        # Create output vector layer with new attributes
-        error_exp = None
-        inFeat = QgsFeature()
-        outFeat = QgsFeature()
+        feature = QgsFeature()
         features = vector.features(layer)
+
         if len(features):
-            total = 100.0 / len(features)
-            for current, inFeat in enumerate(features):
-                rownum = current + 1
+            progress_step = 100.0 / len(features)
+        for current, feature in enumerate(features):
+            self.exp_context.setFeature(feature)
+            self.exp_context.lastScope().setVariable("row_number", current + 1)
 
-                geometry = inFeat.geometry()
-                outFeat.setGeometry(geometry)
+            geometry = feature.geometry()
 
-                attrs = []
-                for i in range(0, len(mapping)):
-                    field_def = mapping[i]
-                    expression = expressions[i]
-                    exp_context.setFeature(inFeat)
-                    exp_context.lastScope().setVariable("row_number", rownum)
-                    value = expression.evaluate(exp_context)
-                    if expression.hasEvalError():
-                        error_exp = expression
-                        break
+            attrs = []
+            for i in range(0, len(mapping)):
+                field_def = mapping[i]
+                expr = fields_expr[i]
+                value = self.evaluateExpression(expr)
+                attrs.append(value)
 
-                    attrs.append(value)
-                outFeat.setAttributes(attrs)
+            outFeat = QgsFeature()
+            outFeat.setGeometry(geometry)
+            outFeat.setAttributes(attrs)
+            writer.addFeature(outFeat)
 
-                writer.addFeature(outFeat)
-
-                feedback.setProgress(int(current * total))
-        else:
-            feedback.setProgress(100)
+            feedback.setProgress(int(current * progress_step))
 
         del writer
 
-        if error_exp is not None:
+    def createExpression(self, text):
+        expr = QgsExpression(text)
+        expr.setGeomCalculator(self.da)
+        expr.setDistanceUnits(QgsProject.instance().distanceUnits())
+        expr.setAreaUnits(QgsProject.instance().areaUnits())
+        expr.prepare(self.exp_context)
+        if expr.hasParserError():
+            raise GeoAlgorithmExecutionException(
+                self.tr(u'Parser error in expression "{}": {}')
+                .format(expr.expression(),
+                        expr.parserErrorString()))
+        return expr
+
+    def evaluateExpression(self, expr):
+        value = expr.evaluate(self.exp_context)
+        if expr.hasEvalError():
             raise GeoAlgorithmExecutionException(
                 self.tr(u'Evaluation error in expression "{}": {}')
-                    .format(str(error_exp.expression()),
-                            str(error_exp.parserErrorString())))
+                    .format(expr.expression(),
+                            expr.parserErrorString()))
+        return value
