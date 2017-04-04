@@ -279,6 +279,7 @@ class ProcessingToolbox(BASE, WIDGET):
                         ProcessingConfig.SHOW_RECENT_ALGORITHMS)
                     if showRecent:
                         self.addRecentAlgorithms(True)
+                dlg.deleteLater()
             else:
                 feedback = MessageBarProgress()
                 execute(alg, feedback)
