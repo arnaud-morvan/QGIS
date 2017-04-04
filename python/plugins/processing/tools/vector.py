@@ -59,15 +59,6 @@ TYPE_MAP = {
     bool: QVariant.Bool
 }
 
-TYPE_MAP_MEMORY_LAYER = {
-    QVariant.String: "string",
-    QVariant.Double: "double",
-    QVariant.Int: "integer",
-    QVariant.Date: "date",
-    QVariant.DateTime: "datetime",
-    QVariant.Time: "time"
-}
-
 TYPE_MAP_POSTGIS_LAYER = {
     QVariant.String: "VARCHAR",
     QVariant.Double: "REAL",
@@ -639,16 +630,17 @@ class VectorWriter(object):
             uri = QgsWkbTypes.displayString(geometryType) + "?uuid=" + str(uuid.uuid4())
             if crs.isValid():
                 uri += '&crs=' + crs.authid()
-            fieldsdesc = []
-            for f in fields:
-                qgsfield = _toQgsField(f)
-                fieldsdesc.append('field=%s:%s' % (qgsfield.name(),
-                                                   TYPE_MAP_MEMORY_LAYER.get(qgsfield.type(), "string")))
-            if fieldsdesc:
-                uri += '&' + '&'.join(fieldsdesc)
 
             self.layer = QgsVectorLayer(uri, self.destination, 'memory')
+
+            qgsfields = []
+            for f in fields:
+                qgsfields.append(_toQgsField(f))
+            self.layer.dataProvider().addAttributes(qgsfields)
+            self.layer.updateFields()
+
             self.writer = self.layer.dataProvider()
+
         elif self.destination.startswith(self.POSTGIS_LAYER_PREFIX):
             self.isNotFileBased = True
             uri = QgsDataSourceUri(self.destination[len(self.POSTGIS_LAYER_PREFIX):])
