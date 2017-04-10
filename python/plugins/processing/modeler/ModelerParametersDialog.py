@@ -349,7 +349,7 @@ class ModelerParametersDialog(QDialog):
 
     def setParamValue(self, alg, param, wrapper):
         try:
-            if wrapper.widget:
+            if wrapper.widget is not None:
                 value = wrapper.value()
                 alg.params[param.name] = value
             return True

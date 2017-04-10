@@ -183,6 +183,7 @@ from .ExecuteSQL import ExecuteSQL
 from .FindProjection import FindProjection
 from .TopoColors import TopoColor
 from .EliminateSelection import EliminateSelection
+from .Aggregate import Aggregate
 
 pluginPath = os.path.normpath(os.path.join(
     os.path.split(os.path.dirname(__file__))[0], os.pardir))
@@ -255,7 +256,7 @@ class QGISAlgorithmProvider(QgsProcessingProvider):
                 ShortestPathLayerToPoint(), ServiceAreaFromPoint(),
                 ServiceAreaFromLayer(), TruncateTable(), Polygonize(),
                 FixGeometry(), ExecuteSQL(), FindProjection(),
-                TopoColor(), EliminateSelection()
+                TopoColor(), EliminateSelection(), Aggregate()
                 ]
 
         if hasPlotly:

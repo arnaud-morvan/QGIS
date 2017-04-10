@@ -14,6 +14,204 @@ tests:
           geometry:
             precision: 7
 
+  - name: Aggregate all
+    algorithm: qgis:aggregate
+    params:
+      INPUT:
+        name: dissolve_polys.gml
+        type: vector
+      GROUP_BY: 'NULL'
+      AGGREGATES: >
+        [{
+          'aggregate': 'concatenate',
+          'input': 'fid',
+          'type': 10,
+          'delimiter': ',',
+          'name': 'fids',
+          'length': 255,
+          'precision': 0
+        }, {
+          'aggregate': 'concatenate',
+          'input': 'name',
+          'type': 10,
+          'delimiter': ',',
+          'name': 'name',
+          'length': 255,
+          'precision': 0
+        }, {
+          'aggregate': 'sum',
+          'input': 'intval',
+          'type': 2,
+          'delimiter': '',
+          'name': 'intval',
+          'length': 0,
+          'precision': 0
+        }, {
+          'aggregate': 'mean',
+          'input': 'floatval',
+          'type': 6,
+          'delimiter': '',
+          'name': 'floatval',
+          'length': 0,
+          'precision': 0
+        }]
+    results:
+      OUTPUT:
+        name: expected/aggregate_all.gml
+        type: vector
+
+  - name: Aggregate using field
+    algorithm: qgis:aggregate
+    params:
+      INPUT:
+        name: dissolve_polys.gml
+        type: vector
+      GROUP_BY: '"name"'
+      AGGREGATES: >
+        [{
+          'aggregate': 'concatenate',
+          'input': 'fid',
+          'type': 10,
+          'delimiter': ',',
+          'name': 'fids',
+          'length': 50,
+          'precision': 0
+        }, {
+          'aggregate': 'first_value',
+          'input': 'name',
+          'type': 10,
+          'delimiter': ',',
+          'name': 'name',
+          'length': 2,
+          'precision': 0
+        }, {
+          'aggregate': 'sum',
+          'input': 'intval',
+          'type': 2,
+          'delimiter': '',
+          'name': 'intval',
+          'length': 0,
+          'precision': 0
+        }, {
+          'aggregate': 'mean',
+          'input': 'floatval',
+          'type': 6,
+          'delimiter': '',
+          'name': 'floatval',
+          'length': 0,
+          'precision': 0
+        }]
+    results:
+      OUTPUT:
+        name: expected/aggregate_field.gml
+        type: vector
+
+  - algorithm: qgis:aggregate
+    name: Aggregate using two fields
+    params:
+      INPUT:
+        name: dissolve_polys.gml
+        type: vector
+      GROUP_BY: array("intval", "name")
+      AGGREGATES: >
+        [{
+          'aggregate': 'concatenate',
+          'input': 'fid',
+          'type': 10,
+          'delimiter': ',',
+          'name': 'fids',
+          'length': 80,
+          'precision': 0
+        }, {
+          'aggregate': 'first_value',
+          'input': 'name',
+          'type': 10,
+          'delimiter': ',',
+          'name': 'name',
+          'length': 2,
+          'precision': 0
+        }, {
+          'aggregate': 'first_value',
+          'input': 'intval',
+          'type': 2,
+          'delimiter': '',
+          'name': 'intval',
+          'length': 0,
+          'precision': 0
+        }, {
+          'aggregate': 'mean',
+          'input': 'floatval',
+          'type': 6,
+          'delimiter': '',
+          'name': 'floatval',
+          'length': 0,
+          'precision': 0
+        }]
+    results:
+      OUTPUT:
+        name: expected/aggregate_two_fields.gml
+        type: vector
+
+  - name: Aggregate points
+    algorithm: qgis:aggregate
+    params:
+      INPUT:
+        name: points.gml
+        type: vector
+      GROUP_BY: '"id2"'
+      AGGREGATES: >
+        [{
+          'aggregate': 'concatenate',
+          'input': 'fid',
+          'type': 10,
+          'delimiter': ',',
+          'name': 'fids',
+          'length': 50,
+          'precision': 0
+        }, {
+          'aggregate': 'concatenate',
+          'input': 'to_string("id")',
+          'type': 10,
+          'delimiter': ',',
+          'name': 'ids',
+          'length': 50,
+          'precision': 0
+        }, {
+          'aggregate': 'first_value',
+          'input': 'id2',
+          'type': 6,
+          'delimiter': '',
+          'name': 'id2',
+          'length': 0,
+          'precision': 0
+        }]
+    results:
+      OUTPUT:
+        name: expected/aggregate_points.gml
+        type: vector
+
+  - name: Aggregate lines
+    algorithm: qgis:aggregate
+    params:
+      INPUT:
+        name: lines.gml
+        type: vector
+      GROUP_BY: 'NULL'
+      AGGREGATES: >
+        [{
+          'aggregate': 'concatenate',
+          'input': 'fid',
+          'type': 10,
+          'delimiter': ',',
+          'name': 'fids',
+          'length': 255,
+          'precision': 0
+        }]
+    results:
+      OUTPUT:
+        name: expected/aggregate_lines.gml
+        type: vector
+
   - name: Delete Holes
     algorithm: qgis:deleteholes
     params:
