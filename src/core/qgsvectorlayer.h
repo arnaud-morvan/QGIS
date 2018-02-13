@@ -311,6 +311,10 @@ typedef QSet<int> QgsAttributeIds;
  *
  *   Defines an expression that will identify a subset of records to display
  *
+ * - filterExpression=expression
+ *
+ *   Defines an QGIS expression filter
+ *
  * - crs=crsstring
  *
  *   Defines the coordinate reference system used for the layer.  This can be
@@ -958,6 +962,9 @@ class CORE_EXPORT QgsVectorLayer : public QgsMapLayer, public QgsExpressionConte
      * \returns The subset string or null QString if not implemented by the provider
      */
     virtual QString subsetString() const;
+
+    virtual bool setFilterExpression( const QString &expression );
+    virtual QString filterExpression() const;
 
     /**
      * Query the layer for features specified in request.

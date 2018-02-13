@@ -111,6 +111,7 @@ class APP_EXPORT QgsVectorLayerProperties : public QgsOptionsDialogBase, private
     //methods reimplemented from qt designer base class
     //
 
+    void pbnExpressionBuilder_clicked();
     void pbnQueryBuilder_clicked();
     void pbnIndex_clicked();
     void mCrsSelector_crsChanged( const QgsCoordinateReferenceSystem &crs );

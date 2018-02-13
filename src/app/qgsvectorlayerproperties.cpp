@@ -793,6 +793,26 @@ void QgsVectorLayerProperties::onCancel()
   }
 }
 
+void QgsVectorLayerProperties::pbnExpressionBuilder_clicked()
+{
+  // launch the expression builder
+  QgsExpressionBuilderDialog *ebd = new QgsExpressionBuilderDialog( mLayer, txtSubsetExpression->toPlainText(), this );
+
+  // Open the expression builder
+  if ( ebd->exec() )
+  {
+    // if the sql is changed, update it in the prop subset text box
+    txtSubsetExpression->setText( ebd->expressionText() );
+    //TODO If the sql is changed in the prop dialog, the layer extent should be recalculated
+
+    // The datasource for the layer needs to be updated with the new sql since this gets
+    // saved to the project file. This should happen at the map layer level...
+
+  }
+  // delete the query builder object
+  delete ebd;
+}
+
 void QgsVectorLayerProperties::pbnQueryBuilder_clicked()
 {
   // launch the query builder

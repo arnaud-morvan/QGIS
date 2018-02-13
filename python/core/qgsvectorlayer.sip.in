@@ -252,6 +252,10 @@ geometries.
 
 Defines an expression that will identify a subset of records to display
 
+- filterExpression=expression
+
+Defines an QGIS expression filter
+
 - crs=crsstring
 
 Defines the coordinate reference system used for the layer.  This can be
@@ -969,6 +973,9 @@ Get the string (typically sql) used to define a subset of the layer
 
 :return: The subset string or null QString if not implemented by the provider
 %End
+
+    virtual bool setFilterExpression( const QString &expression );
+    virtual QString filterExpression() const;
 
     virtual QgsFeatureIterator getFeatures( const QgsFeatureRequest &request = QgsFeatureRequest() ) const;
 

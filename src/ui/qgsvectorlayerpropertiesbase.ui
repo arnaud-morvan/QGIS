@@ -611,6 +611,59 @@ border-radius: 2px;</string>
                 </widget>
                </item>
                <item>
+                <widget class="QgsCollapsibleGroupBox" name="mExpressionSubsetGroupBox">
+                 <property name="sizePolicy">
+                  <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                   <horstretch>0</horstretch>
+                   <verstretch>3</verstretch>
+                  </sizepolicy>
+                 </property>
+                 <property name="title">
+                  <string>Expression feature filter</string>
+                 </property>
+                 <layout class="QGridLayout" name="gridLayout_12">
+                  <item row="1" column="1">
+                   <widget class="QPushButton" name="pbnExpressionBuilder">
+                    <property name="text">
+                     <string>Expression Builder</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item row="1" column="0">
+                   <spacer>
+                    <property name="orientation">
+                     <enum>Qt::Horizontal</enum>
+                    </property>
+                    <property name="sizeType">
+                     <enum>QSizePolicy::Expanding</enum>
+                    </property>
+                    <property name="sizeHint" stdset="0">
+                     <size>
+                      <width>0</width>
+                      <height>21</height>
+                     </size>
+                    </property>
+                   </spacer>
+                  </item>
+                  <item row="0" column="0" colspan="2">
+                   <widget class="QTextEdit" name="txtSubsetExpression">
+                    <property name="enabled">
+                     <bool>false</bool>
+                    </property>
+                    <property name="acceptDrops">
+                     <bool>false</bool>
+                    </property>
+                    <property name="acceptRichText">
+                     <bool>false</bool>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                 <zorder>txtSubsetExpression</zorder>
+                 <zorder>pbnExpressionBuilder</zorder>
+                </widget>
+               </item>
+               <item>
                 <widget class="QgsCollapsibleGroupBox" name="mSubsetGroupBox">
                  <property name="sizePolicy">
                   <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
