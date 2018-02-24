@@ -42,6 +42,20 @@ Sets the model output ``name``.
 .. seealso:: :py:func:`name`
 %End
 
+    QVariant defaultValue() const;
+%Docstring
+Returns the default value for the model output parameter.
+
+.. seealso:: :py:func:`setDefaultValue`
+%End
+
+    void setDefaultValue( const QVariant &value );
+%Docstring
+Sets the default value for the model output.
+
+.. seealso:: :py:func:`defaultValue`
+%End
+
     QString childId() const;
 %Docstring
 Returns the child algorithm ID from which this output is generated.

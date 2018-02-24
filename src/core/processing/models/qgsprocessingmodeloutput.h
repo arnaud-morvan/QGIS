@@ -51,6 +51,18 @@ class CORE_EXPORT QgsProcessingModelOutput : public QgsProcessingModelComponent
     void setName( const QString &name ) { mName = name; }
 
     /**
+     * Returns the default value for the model output parameter.
+     * \see setDefaultValue()
+     */
+    QVariant defaultValue() const { return mDefaultValue; }
+
+    /**
+     * Sets the default value for the model output.
+     * \see defaultValue()
+     */
+    void setDefaultValue( const QVariant &value ) { mDefaultValue = value; }
+
+    /**
      * Returns the child algorithm ID from which this output is generated.
      * \see setChildId()
      */
@@ -89,6 +101,7 @@ class CORE_EXPORT QgsProcessingModelOutput : public QgsProcessingModelComponent
   private:
 
     QString mName;
+    QVariant mDefaultValue;
     QString mChildId;
     QString mOutputName;
 };

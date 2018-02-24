@@ -51,8 +51,13 @@ from qgis.core import (QgsApplication,
                        QgsProcessingParameterVectorLayer,
                        QgsProcessingParameterField,
                        QgsProcessingParameterFeatureSource,
-                       QgsProcessingParameterBand
-                       )
+                       QgsProcessingParameterBand,
+                       QgsProcessingDestinationParameter,
+                       QgsProcessingParameterFeatureSink,
+                       QgsProcessingParameterFileDestination,
+                       QgsProcessingParameterFolderDestination,
+                       QgsProcessingParameterRasterDestination,
+                       QgsProcessingParameterVectorDestination)
 from qgis.PyQt.QtCore import (Qt,
                               QByteArray,
                               QCoreApplication)
@@ -66,6 +71,7 @@ from qgis.PyQt.QtWidgets import (QDialog,
                                  QMessageBox)
 
 from processing.core import parameters
+from processing.gui.DestinationSelectionPanel import DestinationSelectionPanel
 
 
 class ModelerParameterDefinitionDialog(QDialog):
@@ -273,13 +279,19 @@ class ModelerParameterDefinitionDialog(QDialog):
                 self.selector.setCrs(QgsCoordinateReferenceSystem('EPSG:4326'))
             self.verticalLayout.addWidget(self.selector)
 
-        self.verticalLayout.addSpacing(20)
-        self.requiredCheck = QCheckBox()
-        self.requiredCheck.setText(self.tr('Mandatory'))
-        self.requiredCheck.setChecked(True)
-        if self.param is not None:
-            self.requiredCheck.setChecked(not self.param.flags() & QgsProcessingParameterDefinition.FlagOptional)
-        self.verticalLayout.addWidget(self.requiredCheck)
+        elif isinstance(self.param, QgsProcessingDestinationParameter):
+            self.verticalLayout.addWidget(QLabel(self.tr('Default value')))
+            self.defaultWidget = DestinationSelectionPanel(self.param, self.alg, show_encoding=False)
+            self.verticalLayout.addWidget(self.defaultWidget)
+
+        if not isinstance(self.param, QgsProcessingDestinationParameter):
+            self.verticalLayout.addSpacing(20)
+            self.requiredCheck = QCheckBox()
+            self.requiredCheck.setText(self.tr('Mandatory'))
+            self.requiredCheck.setChecked(True)
+            if self.param is not None:
+                self.requiredCheck.setChecked(not self.param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+            self.verticalLayout.addWidget(self.requiredCheck)
 
         self.buttonBox = QDialogButtonBox(self)
         self.buttonBox.setOrientation(Qt.Horizontal)
@@ -399,6 +411,41 @@ class ModelerParameterDefinitionDialog(QDialog):
         elif (self.paramType == parameters.PARAMETER_CRS or
               isinstance(self.param, QgsProcessingParameterCrs)):
             self.param = QgsProcessingParameterCrs(name, description, self.selector.crs().authid())
+
+        elif (isinstance(self.param, QgsProcessingParameterFeatureSink)):
+            self.param = QgsProcessingParameterFeatureSink(
+                name=name,
+                description=self.param.description(),
+                type=self.param.dataType(),
+                defaultValue=str(self.defaultWidget.getValue()),
+                optional=self.param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        elif (isinstance(self.param, QgsProcessingParameterFileDestination)):
+            self.param = QgsProcessingParameterFileDestination(
+                name=name,
+                description=self.param.description(),
+                fileFilter=self.param.fileFilter(),
+                defaultValue=str(self.defaultWidget.getValue()),
+                optional=self.param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        elif (isinstance(self.param, QgsProcessingParameterFolderDestination)):
+            self.param = QgsProcessingParameterFolderDestination(
+                name=name,
+                description=self.param.description(),
+                defaultValue=str(self.defaultWidget.getValue()),
+                optional=self.param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        elif (isinstance(self.param, QgsProcessingParameterRasterDestination)):
+            self.param = QgsProcessingParameterRasterDestination(
+                name=name,
+                description=self.param.description(),
+                defaultValue=str(self.defaultWidget.getValue()),
+                optional=self.param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        elif (isinstance(self.param, QgsProcessingParameterVectorDestination)):
+            self.param = QgsProcessingParameterVectorDestination(
+                name=name,
+                description=self.param.description(),
+                type=self.param.dataType(),
+                defaultValue=str(self.defaultWidget.getValue()),
+                optional=self.param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+
         else:
             if self.paramType:
                 typeId = self.paramType
@@ -413,8 +460,9 @@ class ModelerParameterDefinitionDialog(QDialog):
             self.param.setDescription(name)
             self.param.setMetadata(paramTypeDef.metadata())
 
-        if not self.requiredCheck.isChecked():
-            self.param.setFlags(self.param.flags() | QgsProcessingParameterDefinition.FlagOptional)
+        if not isinstance(self.param, QgsProcessingDestinationParameter):
+            if not self.requiredCheck.isChecked():
+                self.param.setFlags(self.param.flags() | QgsProcessingParameterDefinition.FlagOptional)
 
         settings = QgsSettings()
         settings.setValue("/Processing/modelParametersDefinitionDialogGeometry", self.saveGeometry())

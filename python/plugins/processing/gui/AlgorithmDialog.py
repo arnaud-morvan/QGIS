@@ -39,6 +39,8 @@ from qgis.core import (Qgis,
                        QgsProcessingParameterDefinition,
                        QgsProcessingAlgRunnerTask,
                        QgsProcessingOutputHtml,
+                       QgsProcessingParameterFileDestination,
+                       QgsProcessingParameterFolderDestination,
                        QgsProcessingParameterVectorDestination,
                        QgsProcessingOutputLayerDefinition,
                        QgsProcessingParameterFeatureSink,
@@ -110,8 +112,12 @@ class AlgorithmDialog(QgsProcessingAlgorithmDialogBase):
                     if self.mainWidget().checkBoxes[param.name()].isChecked():
                         dest_project = QgsProject.instance()
 
-                value = self.mainWidget().outputWidgets[param.name()].getValue()
-                if value and isinstance(value, QgsProcessingOutputLayerDefinition):
+                widget = self.mainWidget().outputWidgets[param.name()]
+                value = widget.getValue()
+                if value and not isinstance(param, (QgsProcessingParameterFolderDestination,
+                                                    QgsProcessingParameterFileDestination)):
+                    value = QgsProcessingOutputLayerDefinition(value)
+                    value.createOptions = {'fileEncoding': widget.encoding}
                     value.destinationProject = dest_project
                 if value:
                     parameters[param.name()] = value

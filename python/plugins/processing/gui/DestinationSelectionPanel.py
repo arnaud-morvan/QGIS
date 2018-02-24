@@ -62,12 +62,13 @@ class DestinationSelectionPanel(BASE, WIDGET):
     SKIP_OUTPUT = QCoreApplication.translate(
         'DestinationSelectionPanel', '[Skip output]')
 
-    def __init__(self, parameter, alg):
+    def __init__(self, parameter, alg, show_encoding=True):
         super(DestinationSelectionPanel, self).__init__(None)
         self.setupUi(self)
 
         self.parameter = parameter
         self.alg = alg
+        self.show_encoding = show_encoding
         settings = QgsSettings()
         self.encoding = settings.value('/Processing/encoding', 'System')
         self.use_temporary = True
@@ -82,6 +83,8 @@ class DestinationSelectionPanel(BASE, WIDGET):
                 self.leText.setPlaceholderText(self.SAVE_TO_TEMP_LAYER)
             elif not isinstance(self.parameter, QgsProcessingParameterFolderDestination):
                 self.leText.setPlaceholderText(self.SAVE_TO_TEMP_FILE)
+
+        self.setValue(self.parameter.defaultValue())
 
         self.btnSelect.clicked.connect(self.selectOutput)
         self.leText.textEdited.connect(self.textChanged)
@@ -138,10 +141,11 @@ class DestinationSelectionPanel(BASE, WIDGET):
                 actionSaveToPostGIS.setEnabled(bool(names))
                 popupMenu.addAction(actionSaveToPostGIS)
 
-            actionSetEncoding = QAction(
-                QCoreApplication.translate('DestinationSelectionPanel', 'Change File Encoding ({})…').format(self.encoding), self.btnSelect)
-            actionSetEncoding.triggered.connect(self.selectEncoding)
-            popupMenu.addAction(actionSetEncoding)
+            if self.show_encoding:
+                actionSetEncoding = QAction(
+                    QCoreApplication.translate('DestinationSelectionPanel', 'Change File Encoding ({})…').format(self.encoding), self.btnSelect)
+                actionSetEncoding.triggered.connect(self.selectEncoding)
+                popupMenu.addAction(actionSetEncoding)
 
             popupMenu.exec_(QCursor.pos())
 
@@ -267,7 +271,7 @@ class DestinationSelectionPanel(BASE, WIDGET):
             settings.setValue('/Processing/LastOutputPath', dirName)
 
     def setValue(self, value):
-        if value == 'memory:':
+        if value == 'memory:' or not value:
             self.saveToTemporary()
         else:
             self.leText.setText(value)
@@ -288,9 +292,4 @@ class DestinationSelectionPanel(BASE, WIDGET):
         if isinstance(self.parameter, QgsProcessingParameterFolderDestination):
             return self.leText.text()
 
-        if isinstance(self.parameter, QgsProcessingParameterFileDestination):
-            return key
-
-        value = QgsProcessingOutputLayerDefinition(key)
-        value.createOptions = {'fileEncoding': self.encoding}
-        return value
+        return key

@@ -774,6 +774,7 @@ void QgsProcessingModelAlgorithm::updateDestinationParameters()
       std::unique_ptr< QgsProcessingParameterDefinition > param( source->clone() );
       param->setName( outputIt->childId() + ':' + outputIt->name() );
       param->setDescription( outputIt->description() );
+      param->setDefaultValue( outputIt->defaultValue() );
       addParameter( param.release() );
     }
   }

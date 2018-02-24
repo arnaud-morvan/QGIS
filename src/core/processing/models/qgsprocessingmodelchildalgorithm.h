@@ -238,6 +238,15 @@ class CORE_EXPORT QgsProcessingModelChildAlgorithm : public QgsProcessingModelCo
     void setModelOutputs( const QMap<QString, QgsProcessingModelOutput> &outputs );
 
     /**
+     * Removes an existing output from the final model outputs.
+     *
+     * QgsProcessingModelAlgorithm::updateDestinationParameters() must be called on the parent model.
+     *
+     * \see modelOutputs()
+     */
+    bool removeModelOutput( const QString &name );
+
+    /**
      * Saves this child to a QVariant.
      * \see loadVariant()
      */
