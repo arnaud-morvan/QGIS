@@ -260,6 +260,8 @@ Removes an existing output from the final model outputs.
 QgsProcessingModelAlgorithm.updateDestinationParameters() must be called on the parent model.
 
 .. seealso:: :py:func:`modelOutputs`
+
+.. versionadded:: 3.2
 %End
 
     QVariant toVariant() const;

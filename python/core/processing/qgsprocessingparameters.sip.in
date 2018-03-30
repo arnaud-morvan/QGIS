@@ -1804,6 +1804,11 @@ value will be a file path or QGIS data provider URI suitable for
 temporary storage of created layers and files.
 %End
 
+    void updateModelProperties( const QgsProcessingParameterDefinition *other );
+%Docstring
+Reimport model customisable properties during destination parameters update.
+%End
+
     bool createByDefault() const;
 %Docstring
 Returns true if the destination should be created by default. For optional parameters,

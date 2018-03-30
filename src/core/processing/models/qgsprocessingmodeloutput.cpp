@@ -29,6 +29,7 @@ QVariant QgsProcessingModelOutput::toVariant() const
   QVariantMap map;
   map.insert( QStringLiteral( "name" ), mName );
   map.insert( QStringLiteral( "default_value" ), mDefaultValue );
+  map.insert( QStringLiteral( "create_options" ), createOptions );
   map.insert( QStringLiteral( "child_id" ), mChildId );
   map.insert( QStringLiteral( "output_name" ), mOutputName );
   saveCommonProperties( map );
@@ -39,6 +40,7 @@ bool QgsProcessingModelOutput::loadVariant( const QVariantMap &map )
 {
   mName = map.value( QStringLiteral( "name" ) ).toString();
   mDefaultValue = map.value( QStringLiteral( "default_value" ) );
+  //createOptions = map.value( QStringLiteral( "create_options" ) );
   mChildId = map.value( QStringLiteral( "child_id" ) ).toString();
   mOutputName = map.value( QStringLiteral( "output_name" ) ).toString();
   restoreCommonProperties( map );

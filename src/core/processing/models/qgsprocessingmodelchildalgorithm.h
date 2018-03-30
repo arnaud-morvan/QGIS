@@ -243,6 +243,7 @@ class CORE_EXPORT QgsProcessingModelChildAlgorithm : public QgsProcessingModelCo
      * QgsProcessingModelAlgorithm::updateDestinationParameters() must be called on the parent model.
      *
      * \see modelOutputs()
+     * \since QGIS 3.2
      */
     bool removeModelOutput( const QString &name );
 

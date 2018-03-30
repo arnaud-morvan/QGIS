@@ -740,22 +740,10 @@ QgsProcessingModelParameter &QgsProcessingModelAlgorithm::parameterComponent( co
 
 void QgsProcessingModelAlgorithm::updateDestinationParameters()
 {
-  //delete existing destination parameters
-  QMutableListIterator<const QgsProcessingParameterDefinition *> it( mParameters );
-  while ( it.hasNext() )
-  {
-    const QgsProcessingParameterDefinition *def = it.next();
-    if ( def->isDestination() )
-    {
-      delete def;
-      it.remove();
-    }
-  }
-  // also delete outputs
-  qDeleteAll( mOutputs );
-  mOutputs.clear();
+  //QgsProcessingParameterDefinitions fresh_outputs();
+  QList< QgsProcessingDestinationParameter * > fresh_outputs;
 
-  // rebuild
+  // rebuild fresh outputs keeping customisable properties
   QMap< QString, QgsProcessingModelChildAlgorithm >::const_iterator childIt = mChildAlgorithms.constBegin();
   for ( ; childIt != mChildAlgorithms.constEnd(); ++childIt )
   {
@@ -771,12 +759,39 @@ void QgsProcessingModelAlgorithm::updateDestinationParameters()
       if ( !source )
         continue;
 
-      std::unique_ptr< QgsProcessingParameterDefinition > param( source->clone() );
+      QgsProcessingDestinationParameter *param( ( QgsProcessingDestinationParameter * ) source->clone() );
       param->setName( outputIt->childId() + ':' + outputIt->name() );
       param->setDescription( outputIt->description() );
-      param->setDefaultValue( outputIt->defaultValue() );
-      addParameter( param.release() );
+      //param->setDefaultValue( outputIt->defaultValue() );
+
+
+      param->updateModelProperties( parameterDefinition( param->name() ) );
+
+      fresh_outputs << param;
+      //addParameter( param.release() );
     }
+  }
+
+  //delete existing destination parameters
+  QMutableListIterator<const QgsProcessingParameterDefinition *> it( mParameters );
+  while ( it.hasNext() )
+  {
+    const QgsProcessingParameterDefinition *def = it.next();
+    if ( def->isDestination() )
+    {
+      delete def;
+      it.remove();
+    }
+  }
+  // also delete outputs
+  qDeleteAll( mOutputs );
+  mOutputs.clear();
+
+  // add fresh new ones
+  QList< QgsProcessingDestinationParameter * >::const_iterator freshIt = fresh_outputs.constBegin();
+  for ( ; freshIt != fresh_outputs.constEnd(); ++freshIt )
+  {
+    addParameter( ( QgsProcessingParameterDefinition * ) freshIt );
   }
 }
 

@@ -83,8 +83,7 @@ class ModelerGraphicItem(QGraphicsItem):
         self.setFlag(QGraphicsItem.ItemSendsGeometryChanges, True)
         self.setZValue(1000)
 
-        # if not isinstance(element, QgsProcessingModelOutput) and controls:
-        if True:
+        if controls:
             svg = QSvgRenderer(os.path.join(pluginPath, 'images', 'edit.svg'))
             picture = QPicture()
             painter = QPainter(picture)
@@ -219,15 +218,16 @@ class ModelerGraphicItem(QGraphicsItem):
                 alg.setChildId(self.element.childId())
                 self.updateAlgorithm(alg)
                 self.scene.dialog.repaintModel()
+
         elif isinstance(self.element, QgsProcessingModelOutput):
-            alg = self.model.childAlgorithm(self.element.childId())
+            child_alg = self.model.childAlgorithm(self.element.childId())
             param_name = '{}:{}'.format(self.element.childId(), self.element.name())
             dlg = ModelerParameterDefinitionDialog(self.model,
                                                    param=self.model.parameterDefinition(param_name))
             if dlg.exec_() and dlg.param is not None:
-                model_output = alg.modelOutput(self.element.name())
+                model_output = child_alg.modelOutput(self.element.name())
                 model_output.setDescription(dlg.param.description())
-                model_output.setDefaultValue(dlg.param.defaultValue())
+                # model_output.setDefaultValue(dlg.param.defaultValue())
                 self.model.updateDestinationParameters()
 
     def updateAlgorithm(self, alg):
@@ -268,7 +268,7 @@ class ModelerGraphicItem(QGraphicsItem):
                 self.scene.dialog.repaintModel()
         elif isinstance(self.element, QgsProcessingModelOutput):
             self.model.childAlgorithm(self.element.childId()).removeModelOutput(self.element.name())
-            self.model.updateDestinationParameters();
+            self.model.updateDestinationParameters()
             self.scene.dialog.haschanged = True
             self.scene.dialog.repaintModel()
 

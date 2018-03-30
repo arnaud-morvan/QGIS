@@ -284,14 +284,13 @@ class ModelerParameterDefinitionDialog(QDialog):
             self.defaultWidget = DestinationSelectionPanel(self.param, self.alg, show_encoding=False)
             self.verticalLayout.addWidget(self.defaultWidget)
 
-        if not isinstance(self.param, QgsProcessingDestinationParameter):
-            self.verticalLayout.addSpacing(20)
-            self.requiredCheck = QCheckBox()
-            self.requiredCheck.setText(self.tr('Mandatory'))
-            self.requiredCheck.setChecked(True)
-            if self.param is not None:
-                self.requiredCheck.setChecked(not self.param.flags() & QgsProcessingParameterDefinition.FlagOptional)
-            self.verticalLayout.addWidget(self.requiredCheck)
+        self.verticalLayout.addSpacing(20)
+        self.requiredCheck = QCheckBox()
+        self.requiredCheck.setText(self.tr('Mandatory'))
+        self.requiredCheck.setChecked(True)
+        if self.param is not None:
+            self.requiredCheck.setChecked(not self.param.flags() & QgsProcessingParameterDefinition.FlagOptional)
+        self.verticalLayout.addWidget(self.requiredCheck)
 
         self.buttonBox = QDialogButtonBox(self)
         self.buttonBox.setOrientation(Qt.Horizontal)
@@ -460,9 +459,8 @@ class ModelerParameterDefinitionDialog(QDialog):
             self.param.setDescription(name)
             self.param.setMetadata(paramTypeDef.metadata())
 
-        if not isinstance(self.param, QgsProcessingDestinationParameter):
-            if not self.requiredCheck.isChecked():
-                self.param.setFlags(self.param.flags() | QgsProcessingParameterDefinition.FlagOptional)
+        if not self.requiredCheck.isChecked():
+            self.param.setFlags(self.param.flags() | QgsProcessingParameterDefinition.FlagOptional)
 
         settings = QgsSettings()
         settings.setValue("/Processing/modelParametersDefinitionDialogGeometry", self.saveGeometry())

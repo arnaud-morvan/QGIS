@@ -62,13 +62,12 @@ class DestinationSelectionPanel(BASE, WIDGET):
     SKIP_OUTPUT = QCoreApplication.translate(
         'DestinationSelectionPanel', '[Skip output]')
 
-    def __init__(self, parameter, alg, show_encoding=True):
+    def __init__(self, parameter, alg):
         super(DestinationSelectionPanel, self).__init__(None)
         self.setupUi(self)
 
         self.parameter = parameter
         self.alg = alg
-        self.show_encoding = show_encoding
         settings = QgsSettings()
         self.encoding = settings.value('/Processing/encoding', 'System')
         self.use_temporary = True
@@ -141,11 +140,10 @@ class DestinationSelectionPanel(BASE, WIDGET):
                 actionSaveToPostGIS.setEnabled(bool(names))
                 popupMenu.addAction(actionSaveToPostGIS)
 
-            if self.show_encoding:
-                actionSetEncoding = QAction(
-                    QCoreApplication.translate('DestinationSelectionPanel', 'Change File Encoding ({})…').format(self.encoding), self.btnSelect)
-                actionSetEncoding.triggered.connect(self.selectEncoding)
-                popupMenu.addAction(actionSetEncoding)
+            actionSetEncoding = QAction(
+                QCoreApplication.translate('DestinationSelectionPanel', 'Change File Encoding ({})…').format(self.encoding), self.btnSelect)
+            actionSetEncoding.triggered.connect(self.selectEncoding)
+            popupMenu.addAction(actionSetEncoding)
 
             popupMenu.exec_(QCursor.pos())
 
@@ -292,4 +290,9 @@ class DestinationSelectionPanel(BASE, WIDGET):
         if isinstance(self.parameter, QgsProcessingParameterFolderDestination):
             return self.leText.text()
 
-        return key
+        if isinstance(self.parameter, QgsProcessingParameterFileDestination):
+            return key
+
+        value = QgsProcessingOutputLayerDefinition(key)
+        value.createOptions = {'fileEncoding': self.encoding}
+        return value

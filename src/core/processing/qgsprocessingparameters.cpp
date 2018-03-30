@@ -3519,6 +3519,16 @@ QString QgsProcessingDestinationParameter::generateTemporaryDestination() const
   return QgsProcessingUtils::generateTempFilename( name() + '.' + defaultFileExtension() );
 }
 
+void QgsProcessingDestinationParameter::updateModelProperties( const QgsProcessingParameterDefinition *other )
+{
+  mDefault = other->defaultValue();
+  mFlags = other->flags();
+  mMetadata = other->metadata();
+  //mIsDynamic
+  //mPropertyDefinition;
+  //mDynamicLayerParameterName;
+}
+
 bool QgsProcessingDestinationParameter::createByDefault() const
 {
   return mCreateByDefault;

@@ -1745,6 +1745,11 @@ class CORE_EXPORT QgsProcessingDestinationParameter : public QgsProcessingParame
     virtual QString generateTemporaryDestination() const;
 
     /**
+     * Reimport model customisable properties during destination parameters update.
+     */
+    void updateModelProperties( const QgsProcessingParameterDefinition *other );
+
+    /**
      * Returns true if the destination should be created by default. For optional parameters,
      * a return value of false indicates that the destination should not be created by default.
      * \see setCreateByDefault()

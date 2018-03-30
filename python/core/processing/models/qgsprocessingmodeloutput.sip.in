@@ -23,6 +23,9 @@ Represents a final output created by the model.
 %End
   public:
 
+    typedef QFlags<QgsProcessingModelOutput::QgsProcessingParameterDefinition::Flag> Flags;
+
+
     QgsProcessingModelOutput( const QString &name = QString(), const QString &description = QString() );
 %Docstring
 Constructor for QgsProcessingModelOutput with the specified ``name`` and ``description``.
@@ -47,6 +50,8 @@ Sets the model output ``name``.
 Returns the default value for the model output parameter.
 
 .. seealso:: :py:func:`setDefaultValue`
+
+.. versionadded:: 3.2
 %End
 
     void setDefaultValue( const QVariant &value );
@@ -54,7 +59,11 @@ Returns the default value for the model output parameter.
 Sets the default value for the model output.
 
 .. seealso:: :py:func:`defaultValue`
+
+.. versionadded:: 3.2
 %End
+
+    QVariantMap createOptions;
 
     QString childId() const;
 %Docstring
