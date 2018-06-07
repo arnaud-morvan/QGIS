@@ -56,8 +56,6 @@ namespace QgsWfs
       bool withGeom;
 
       const QString &geometryName;
-
-      const QgsCoordinateReferenceSystem &outputCrs;
     };
 
     QString createFeatureGeoJSON( QgsFeature *feat, const createFeatureParams &params );
@@ -112,70 +110,15 @@ namespace QgsWfs
     QStringList typeNameList;
 
     // Request metadata
-    bool onlyOneLayer = ( aRequest.queries.size() == 1 );
-    QgsRectangle requestRect;
-    QgsCoordinateReferenceSystem requestCrs;
-    int requestPrecision = 6;
-    if ( !onlyOneLayer )
-      requestCrs = QgsCoordinateReferenceSystem( 4326, QgsCoordinateReferenceSystem::EpsgCrsId );
-
-    QList<getFeatureQuery>::iterator qIt = aRequest.queries.begin();
-    for ( ; qIt != aRequest.queries.end(); ++qIt )
+    bool onlyOneQuery = ( aRequest.queries.size() == 1 );
+    QgsRectangle boundingBox;
+    QgsCoordinateReferenceSystem boundingBoxCrs;
+    int boundingBoxPrecision;
+    if ( !onlyOneQuery )
     {
-      typeNameList << ( *qIt ).typeName;
-    }
-
-    // get layers and
-    // update the request metadata
-    QStringList wfsLayerIds = QgsServerProjectUtils::wfsLayerIds( *project );
-    QMap<QString, QgsMapLayer *> mapLayerMap;
-    for ( int i = 0; i < wfsLayerIds.size(); ++i )
-    {
-      QgsMapLayer *layer = project->mapLayer( wfsLayerIds.at( i ) );
-      if ( !layer )
-      {
-        continue;
-      }
-      if ( layer->type() != QgsMapLayer::LayerType::VectorLayer )
-      {
-        continue;
-      }
-
-      QString name = layerTypeName( layer );
-
-      if ( typeNameList.contains( name ) )
-      {
-        // store layers
-        mapLayerMap[name] = layer;
-        // update request metadata
-        if ( onlyOneLayer )
-        {
-          requestRect = layer->extent();
-          requestCrs = layer->crs();
-        }
-        else
-        {
-          Q_NOWARN_DEPRECATED_PUSH
-          QgsCoordinateTransform transform( layer->crs(), requestCrs );
-          Q_NOWARN_DEPRECATED_POP
-          try
-          {
-            if ( requestRect.isEmpty() )
-            {
-              requestRect = transform.transform( layer->extent() );
-            }
-            else
-            {
-              requestRect.combineExtentWith( transform.transform( layer->extent() ) );
-            }
-          }
-          catch ( QgsException &cse )
-          {
-            Q_UNUSED( cse );
-            requestRect = QgsRectangle( -180.0, -90.0, 180.0, 90.0 );
-          }
-        }
-      }
+      boundingBoxCrs = QgsCoordinateReferenceSystem( 4326, QgsCoordinateReferenceSystem::EpsgCrsId );
+      boundingBox = QgsRectangle( -180.0, -90.0, 180.0, 90.0 );
+      boundingBoxPrecision = 6;
     }
 
     QgsAccessControl *accessControl = serverIface->accessControls();
@@ -189,27 +132,58 @@ namespace QgsWfs
     long iteratedFeatures = 0;
     // sent features
     QgsFeature feature;
-    qIt = aRequest.queries.begin();
-    for ( ; qIt != aRequest.queries.end(); ++qIt )
-    {
-      getFeatureQuery &query = *qIt;
-      QString typeName = query.typeName;
 
-      if ( !mapLayerMap.keys().contains( typeName ) )
+    for ( const getFeatureQuery &query : aRequest.queries )
+    {
+      QString typeName = query.typeName;
+      QgsVectorLayer *vlayer = QgsWfs::layerByTypeName( project, typeName );
+      if ( vlayer == nullptr )
       {
         throw QgsRequestNotWellFormedException( QStringLiteral( "TypeName '%1' unknown" ).arg( typeName ) );
       }
 
-      QgsMapLayer *layer = mapLayerMap[typeName];
-      if ( accessControl && !accessControl->layerReadPermission( layer ) )
+      // outputCrs
+      QgsCoordinateReferenceSystem queryCrs = vlayer->crs();
+      if ( !query.srsName.isEmpty() )
       {
-        throw QgsSecurityAccessException( QStringLiteral( "Feature access permission denied" ) );
+        queryCrs = QgsCoordinateReferenceSystem::fromOgcWmsCrs( query.srsName );
+      }
+      QgsRectangle queryRect = query.featureRequest.filterRect();
+      if ( queryRect.isEmpty() )
+      {
+        Q_NOWARN_DEPRECATED_PUSH
+        QgsCoordinateTransform transform( vlayer->crs(), queryCrs );
+        Q_NOWARN_DEPRECATED_POP
+        queryRect = transform.transform( vlayer->extent() );
       }
 
-      QgsVectorLayer *vlayer = qobject_cast<QgsVectorLayer *>( layer );
-      if ( !vlayer )
+      if ( onlyOneQuery )
       {
-        throw QgsRequestNotWellFormedException( QStringLiteral( "TypeName '%1' layer error" ).arg( typeName ) );
+        boundingBoxCrs = queryCrs;
+        boundingBoxPrecision = QgsServerProjectUtils::wfsLayerPrecision( *project, vlayer->id() );
+        if ( vlayer->crs().isGeographic() && !queryCrs.isGeographic() )
+          boundingBoxPrecision = std::min( boundingBoxPrecision + 3, 6 );
+      }
+
+      if ( !boundingBoxCrs.isValid() )
+      {
+        boundingBoxCrs = queryCrs;
+      }
+      Q_NOWARN_DEPRECATED_PUSH
+      QgsCoordinateTransform transform( queryCrs, boundingBoxCrs );
+      Q_NOWARN_DEPRECATED_POP
+      if ( boundingBox.isEmpty() )
+      {
+        boundingBox = transform.transform( queryRect );
+      }
+      else
+      {
+        boundingBox.combineExtentWith( transform.transform( queryRect ) );
+      }
+
+      if ( accessControl && !accessControl->layerReadPermission( vlayer ) )
+      {
+        throw QgsSecurityAccessException( QStringLiteral( "Feature access permission denied" ) );
       }
 
       //test provider
@@ -295,7 +269,6 @@ namespace QgsWfs
         }
       }
 
-
       // update request
       QgsFeatureRequest featureRequest = query.featureRequest;
 
@@ -328,48 +301,18 @@ namespace QgsWfs
           vlayer->fields() );
       }
 
-      if ( onlyOneLayer )
-      {
-        requestPrecision = QgsServerProjectUtils::wfsLayerPrecision( *project, vlayer->id() );
-      }
+      int precision = QgsServerProjectUtils::wfsLayerPrecision( *project, vlayer->id() );
 
       if ( aRequest.maxFeatures > 0 )
       {
         featureRequest.setLimit( aRequest.maxFeatures + aRequest.startIndex - sentFeatures );
       }
-      // specific layer precision
-      int layerPrecision = QgsServerProjectUtils::wfsLayerPrecision( *project, vlayer->id() );
-      // specific layer crs
-      QgsCoordinateReferenceSystem layerCrs = vlayer->crs();
 
       // Geometry name
       QString geometryName = aRequest.geometryName;
       if ( !withGeom )
       {
         geometryName = QLatin1String( "NONE" );
-      }
-      // outputCrs
-      QgsCoordinateReferenceSystem outputCrs = vlayer->crs();
-      if ( !query.srsName.isEmpty() )
-      {
-        outputCrs = QgsCoordinateReferenceSystem::fromOgcWmsCrs( query.srsName );
-      }
-
-      if ( onlyOneLayer && !featureRequest.filterRect().isEmpty() )
-      {
-        Q_NOWARN_DEPRECATED_PUSH
-        QgsCoordinateTransform transform( outputCrs, requestCrs );
-        Q_NOWARN_DEPRECATED_POP
-        try
-        {
-          featureRequest.setFilterRect( transform.transform( featureRequest.filterRect() ) );
-        }
-        catch ( QgsException &cse )
-        {
-          Q_UNUSED( cse );
-        }
-
-        requestRect = featureRequest.filterRect();
       }
 
       // Iterate through features
@@ -388,18 +331,17 @@ namespace QgsWfs
       }
       else
       {
-        const createFeatureParams cfp = { layerPrecision,
-                                          layerCrs,
+        const createFeatureParams cfp = { precision,
+                                          featureRequest.destinationCrs(),
                                           attrIndexes,
                                           typeName,
                                           withGeom,
                                           geometryName,
-                                          outputCrs
                                         };
         while ( fit.nextFeature( feature ) && ( aRequest.maxFeatures == -1 || sentFeatures < aRequest.maxFeatures ) )
         {
           if ( iteratedFeatures == aRequest.startIndex )
-            startGetFeature( request, response, project, aRequest.outputFormat, requestPrecision, requestCrs, &requestRect, typeNameList );
+            startGetFeature( request, response, project, aRequest.outputFormat, boundingBoxPrecision, boundingBoxCrs, &boundingBox, typeNameList );
 
           if ( iteratedFeatures >= aRequest.startIndex )
           {
@@ -424,7 +366,7 @@ namespace QgsWfs
     {
       // End of GetFeature
       if ( iteratedFeatures <= aRequest.startIndex )
-        startGetFeature( request, response, project, aRequest.outputFormat, requestPrecision, requestCrs, &requestRect, typeNameList );
+        startGetFeature( request, response, project, aRequest.outputFormat, boundingBoxPrecision, boundingBoxCrs, &boundingBox, typeNameList );
       endGetFeature( response, aRequest.outputFormat );
     }
 
@@ -522,6 +464,8 @@ namespace QgsWfs
         }
       }
 
+      QgsCoordinateReferenceSystem requestCrs = requestedCrs( mWfsParameters.srsName(), typeNameList, project );
+
       QMap<QString, QgsFeatureIds>::const_iterator fidsMapIt = fidsMap.constBegin();
       while ( fidsMapIt != fidsMap.constEnd() )
       {
@@ -538,7 +482,9 @@ namespace QgsWfs
 
         getFeatureQuery query;
         query.typeName = typeName;
+        query.layer = QgsWfs::layerByTypeName( project, typeName );
         query.srsName = mWfsParameters.srsName();
+        query.crs = requestCrs;
 
         // Parse PropertyName
         if ( propertyName != QStringLiteral( "*" ) )
@@ -570,6 +516,7 @@ namespace QgsWfs
 
         QgsFeatureIds fids = fidsMapIt.value();
         QgsFeatureRequest featureRequest( fids );
+        featureRequest.setDestinationCrs( query.crs, project->transformContext() );
 
         query.featureRequest = featureRequest;
         request.queries.append( query );
@@ -597,6 +544,8 @@ namespace QgsWfs
       }
     }
 
+    QgsCoordinateReferenceSystem requestCrs = requestedCrs( mWfsParameters.srsName(), typeNameList, project );
+
     // Create queries based on TypeName and propertyName
     QStringList::const_iterator typeNameIt = typeNameList.constBegin();
     QStringList::const_iterator propertyNameIt = propertyNameList.constBegin();
@@ -613,7 +562,10 @@ namespace QgsWfs
 
       getFeatureQuery query;
       query.typeName = typeName;
+      query.layer = QgsWfs::layerByTypeName( project, typeName );
       query.srsName = mWfsParameters.srsName();
+      query.crs = requestCrs;
+      query.featureRequest.setDestinationCrs( requestCrs, project->transformContext() );
 
       // Parse PropertyName
       if ( propertyName != QStringLiteral( "*" ) )
@@ -707,13 +659,12 @@ namespace QgsWfs
         if ( crs != mWfsParameters.srsName() )
         {
           QgsCoordinateReferenceSystem sourceCrs( crs );
-          QgsCoordinateReferenceSystem destinationCrs( mWfsParameters.srsName() );
-          if ( sourceCrs.isValid() && destinationCrs.isValid( ) )
+          if ( sourceCrs.isValid() && requestCrs.isValid( ) )
           {
             QgsGeometry extentGeom = QgsGeometry::fromRect( extent );
             QgsCoordinateTransform transform;
             transform.setSourceCrs( sourceCrs );
-            transform.setDestinationCrs( destinationCrs );
+            transform.setDestinationCrs( requestCrs );
             try
             {
               if ( extentGeom.transform( transform ) == 0 )
@@ -816,6 +767,29 @@ namespace QgsWfs
     }
 
     return request;
+  }
+
+  QgsCoordinateReferenceSystem requestedCrs( const QString querySrsName, const QStringList typeNames, const QgsProject *project )
+  {
+    if ( !querySrsName.isEmpty() )
+    {
+      return QgsCoordinateReferenceSystem::fromOgcWmsCrs( querySrsName );
+    }
+
+    QString uniqueTypeName;
+    for ( const QString &typeName : typeNames )
+    {
+      if ( uniqueTypeName.isEmpty() )
+      {
+        uniqueTypeName = typeName.trimmed();
+      }
+      if ( typeName.trimmed() != uniqueTypeName )
+      {
+        return QgsCoordinateReferenceSystem( 4326, QgsCoordinateReferenceSystem::EpsgCrsId );
+      }
+    }
+
+    return QgsWfs::layerByTypeName( project, uniqueTypeName )->crs();
   }
 
   getFeatureRequest parseGetFeatureRequestBody( QDomElement &docElem, const QgsProject *project )
@@ -1268,25 +1242,10 @@ namespace QgsWfs
       if ( geom && params.withGeom && params.geometryName != QLatin1String( "NONE" ) )
       {
         int prec = params.precision;
-        QgsCoordinateReferenceSystem crs = params.crs;
-        Q_NOWARN_DEPRECATED_PUSH
-        QgsCoordinateTransform mTransform( crs, params.outputCrs );
-        Q_NOWARN_DEPRECATED_POP
-        try
-        {
-          QgsGeometry transformed = geom;
-          if ( transformed.transform( mTransform ) == 0 )
-          {
-            geom = transformed;
-            crs = params.outputCrs;
-            if ( crs.isGeographic() && !params.crs.isGeographic() )
-              prec = std::min( params.precision + 3, 6 );
-          }
-        }
-        catch ( QgsCsException &cse )
-        {
-          Q_UNUSED( cse );
-        }
+        /*
+        if ( crs.isGeographic() && !params.crs.isGeographic() )
+          prec = std::min( params.precision + 3, 6 );
+        */
 
         QDomElement geomElem = doc.createElement( QStringLiteral( "qgs:geometry" ) );
         QDomElement gmlElem;
@@ -1315,10 +1274,10 @@ namespace QgsWfs
           QDomElement bbElem = doc.createElement( QStringLiteral( "gml:boundedBy" ) );
           QDomElement boxElem = QgsOgcUtils::rectangleToGMLBox( &box, doc, prec );
 
-          if ( crs.isValid() )
+          if ( params.crs.isValid() )
           {
-            boxElem.setAttribute( QStringLiteral( "srsName" ), crs.authid() );
-            gmlElem.setAttribute( QStringLiteral( "srsName" ), crs.authid() );
+            boxElem.setAttribute( QStringLiteral( "srsName" ), params.crs.authid() );
+            gmlElem.setAttribute( QStringLiteral( "srsName" ), params.crs.authid() );
           }
 
           bbElem.appendChild( boxElem );
@@ -1365,25 +1324,10 @@ namespace QgsWfs
       if ( geom && params.withGeom && params.geometryName != QLatin1String( "NONE" ) )
       {
         int prec = params.precision;
-        QgsCoordinateReferenceSystem crs = params.crs;
-        Q_NOWARN_DEPRECATED_PUSH
-        QgsCoordinateTransform mTransform( crs, params.outputCrs );
-        Q_NOWARN_DEPRECATED_POP
-        try
-        {
-          QgsGeometry transformed = geom;
-          if ( transformed.transform( mTransform ) == 0 )
-          {
-            geom = transformed;
-            crs = params.outputCrs;
-            if ( crs.isGeographic() && !params.crs.isGeographic() )
-              prec = std::min( params.precision + 3, 6 );
-          }
-        }
-        catch ( QgsCsException &cse )
-        {
-          Q_UNUSED( cse );
-        }
+        /*
+        if ( crs.isGeographic() && !params.crs.isGeographic() )
+          prec = std::min( params.precision + 3, 6 );
+        */
 
         QDomElement geomElem = doc.createElement( QStringLiteral( "qgs:geometry" ) );
         QDomElement gmlElem;
@@ -1412,10 +1356,10 @@ namespace QgsWfs
           QDomElement bbElem = doc.createElement( QStringLiteral( "gml:boundedBy" ) );
           QDomElement boxElem = QgsOgcUtils::rectangleToGMLEnvelope( &box, doc, prec );
 
-          if ( crs.isValid() )
+          if ( params.crs.isValid() )
           {
-            boxElem.setAttribute( QStringLiteral( "srsName" ), crs.authid() );
-            gmlElem.setAttribute( QStringLiteral( "srsName" ), crs.authid() );
+            boxElem.setAttribute( QStringLiteral( "srsName" ), params.crs.authid() );
+            gmlElem.setAttribute( QStringLiteral( "srsName" ), params.crs.authid() );
           }
 
           bbElem.appendChild( boxElem );

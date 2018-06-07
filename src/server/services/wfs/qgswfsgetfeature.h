@@ -35,6 +35,9 @@ namespace QgsWfs
     QgsFeatureRequest featureRequest;
 
     QStringList propertyList;
+
+    QgsVectorLayer *layer;
+    QgsCoordinateReferenceSystem crs;
   };
 
   struct getFeatureRequest
@@ -69,6 +72,8 @@ namespace QgsWfs
    * Transform parameters to getFeatureRequest
    */
   getFeatureRequest parseGetFeatureParameters( const QgsProject *project = nullptr );
+
+  QgsCoordinateReferenceSystem requestedCrs( const QString querySrsName, const QStringList typeNames, const QgsProject *project );
 
   /**
    * Output WFS  GetFeature response
