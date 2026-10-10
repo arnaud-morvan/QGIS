@@ -418,7 +418,11 @@ class ProcessingPlugin(QObject):
             widget = alg.createCustomParametersWidget(iface.mainWindow())
 
             if not widget:
-                widget = AlgorithmWidget(alg, in_place)
+                widget = AlgorithmWidget(
+                    alg,
+                    in_place,
+                    flags=QgsProcessingAlgorithmWidgetBase.WidgetFlags(QgsProcessingAlgorithmWidgetBase.WidgetFlag.NoDocking),
+                )
             widget.exec()
         else:
             feedback = MessageBarProgress(algname=alg.displayName())
