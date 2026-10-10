@@ -18,6 +18,7 @@
 #include "qgsapplication.h"
 #include "qgsdockwidget.h"
 #include "qgsguiutils.h"
+#include "qgsmessagelog.h"
 
 #include <QAction>
 #include <QLayout>
@@ -27,6 +28,14 @@
 #include "moc_qgsdockablewidgethelper.cpp"
 
 using namespace Qt::StringLiterals;
+
+namespace
+{
+  QString rectToString( const QRect &r )
+  {
+    return QStringLiteral( "%1,%2 %3x%4" ).arg( r.x() ).arg( r.y() ).arg( r.width() ).arg( r.height() );
+  }
+} // namespace
 
 ///@cond PRIVATE
 
@@ -101,6 +110,16 @@ QgsDockableWidgetHelper::~QgsDockableWidgetHelper()
     mDialogGeometry = mDialog->geometry();
 
     if ( !mSettingKeyDockId.isEmpty() )
+      QgsMessageLog::logMessage(
+        QStringLiteral( "Saving dialog geometry (%1): %2" )
+          .arg(
+            mSettingKeyDockId,
+            rectToString( mDialog->geometry()
+          )
+        ),
+        QStringLiteral( "DockableWidget" ),
+        Qgis::MessageLevel::Info
+      );
       sSettingsDialogGeometry->setValue( mDialog->saveGeometry(), mSettingKeyDockId );
 
     mDialog->layout()->removeWidget( mWidget );
@@ -260,6 +279,16 @@ void QgsDockableWidgetHelper::toggleDockMode( bool docked )
   {
     // going from window -> dock, so save current window geometry
     if ( !mSettingKeyDockId.isEmpty() )
+      QgsMessageLog::logMessage(
+        QStringLiteral( "Saving dialog geometry (%1): %2" )
+          .arg(
+            mSettingKeyDockId,
+            rectToString( mDialog->geometry()
+                          )
+            ),
+        QStringLiteral( "DockableWidget" ),
+        Qgis::MessageLevel::Info
+      );
       sSettingsDialogGeometry->setValue( mDialog->saveGeometry(), mSettingKeyDockId );
 
     mDialogGeometry = mDialog->geometry();
@@ -334,6 +363,16 @@ void QgsDockableWidgetHelper::toggleDockMode( bool docked )
     if ( !mSettingKeyDockId.isEmpty() )
     {
       mDialog->restoreGeometry( sSettingsDialogGeometry->value( mSettingKeyDockId ).toByteArray() );
+      QgsMessageLog::logMessage(
+        QStringLiteral( "Restored dialog geometry (%1): %2" )
+          .arg(
+            mSettingKeyDockId,
+            rectToString( mDialog->geometry()
+                          )
+            ),
+        QStringLiteral( "DockableWidget" ),
+        Qgis::MessageLevel::Info
+        );
     }
     else
     {
